@@ -24,7 +24,11 @@ void inOut()
     byte input = Serial1.read();
     byte output = convertion(input);
     if(output == 0xff){Serial.println(input, DEC);}
-    else{Keyboard.write(output);}
+    else
+    {
+      transferTime(output);
+      Keyboard.write(output);
+    }
   }
 }
 
@@ -78,3 +82,54 @@ byte convertion(byte letter)
   else{return pgm_read_byte(&dvorak[letter-32]);}
 }
 
+byte heldASCII(byte letter)
+{
+  static unsigned long holdTimes = 0;
+  static unsigned long lastTime = 0;
+  static byte lastLetter = 0;
+  
+  if(letter == lastLetter)
+  {
+    if(millis() - lastTime < 250)
+    {
+      Keyboard.write(8);
+      
+    }
+  }
+  else
+  {
+    holdTimes = 0;
+    lastLetter = letter;
+    lastTime = millis();
+  }
+
+  if(letter == 32){return 0;}//spacebar
+  if(letter == 9){return 0;}//TAB_KEY
+  
+  if(holdTimes == 18 && letter > 95){return 8;}
+  if(holdTimes == 19)// first hold
+  {//letters covered by main layout
+    if(letter > 95){return letter-32;} //shift cases
+    return letter; //outside cases are repeating
+  }
+  if(holdTimes > 43)
+  {//outside main layout letters repeat
+    if(letter < 95){return letter;}
+  }
+  return 0; //cases not covered
+}
+//--------- Performance testing functions ---------------
+
+void transferTime(byte trigger)
+{
+  static unsigned long durration = 0;
+  static byte letter = 0;
+  
+  Serial.write(letter);
+  Serial.print(F(" -> "));
+  Serial.write(trigger);
+  Serial.print(F(" = "));
+  Serial.println(millis() - durration);
+  durration = millis();
+  letter = trigger;
+}
