@@ -41,11 +41,11 @@ const byte dvorak[] PROGMEM =
 //@, A , B , C , D , E , F , G , H , I , J , K , L , M , N , O ,
  64, 65, 88, 74, 69, 62, 85, 73, 68, 67, 72, 84, 78, 77, 66, 82,
 //P, Q , R , S , T , U , V , W , X , Y , Z , [ , \ , ] , ^ , _ ,
- 76, 34, 80, 79, 89, 71, 75, 60, 81, 70, 59, 47, 92, 61, 94,123,
+ 76, 34, 80, 79, 89, 71, 75, 60, 81, 70, 58, 47, 92, 61, 94,123,
 //`,  a, b , c , d , e , f , g , h , i , j , k , l , m , n , o ,
  96, 97,120,106,101, 46,117,105,100, 99,104,116,110,109, 98,114,
 //p, q , r , s , t , u , v , w , x , y , z , { , | , } , ~ ,del,
-108, 39,112,111,121,103,107, 44,113,102, 58, 63,124, 43,126, 8 ,
+108, 39,112,111,121,103,107, 44,113,102, 59, 63,124, 43,126, 8 ,
 };
 
 #define SPECIALCASES 11
@@ -81,6 +81,8 @@ byte convertion(byte letter)
   if(qwerty){return letter;}
   else{return pgm_read_byte(&dvorak[letter-32]);}
 }
+
+// Hold for caps
 
 byte heldASCII(byte letter)
 {
@@ -129,7 +131,40 @@ void transferTime(byte trigger)
   Serial.print(F(" -> "));
   Serial.write(trigger);
   Serial.print(F(" = "));
-  Serial.println(millis() - durration);
+  unsigned long transTime = millis() - durration;
+  Serial.println(transTime);
+  speedClock(transTime);
   durration = millis();
   letter = trigger;
+}
+
+void speedClock(unsigned long currentTranfer)
+{
+  static unsigned int transferTotal = 0;
+  static unsigned int writeProgression = 0;
+  static unsigned int lastCadence = 0;
+  
+  if(currentTranfer > 5000) //idle case
+  {
+    transferTotal = 0;//reset recording
+    writeProgression = 0;
+    return;
+  }
+  
+  transferTotal += currentTranfer;
+  writeProgression++;
+  if(transferTotal > 6000 && writeProgression > 4)
+  {
+    unsigned int multiplier = 60000 / transferTotal;
+    unsigned int cadence = writeProgression / 5;
+    if(cadence != lastCadence)
+    {
+      Serial.print(cadence * multiplier);
+      Serial.println(F("rawWPM"));
+      lastCadence = cadence;
+      transferTotal = 0;//reset recording
+      writeProgression = 0;
+    }
+  }
+    
 }
