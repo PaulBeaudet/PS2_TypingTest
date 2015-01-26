@@ -37,7 +37,7 @@ const byte dvorak[] PROGMEM =
 //S, ! , " , # , $ , % , & , ' , ( , ) , * , + , , , - , . , / ,
  32, 33, 95, 35, 36, 37, 38, 45, 40, 41, 42,125,119, 91,118,122,
 //0, 1 , 2 , 3 , 4 , 5 , 6 , 7 , 8 , 9 , : , ; , < , = , > , ? ,
- 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 83,115, 87,125, 86, 90,
+ 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 83,115, 87, 93, 86, 90,
 //@, A , B , C , D , E , F , G , H , I , J , K , L , M , N , O ,
  64, 65, 88, 74, 69, 62, 85, 73, 68, 67, 72, 84, 78, 77, 66, 82,
 //P, Q , R , S , T , U , V , W , X , Y , Z , [ , \ , ] , ^ , _ ,
@@ -133,7 +133,9 @@ void transferTime(byte trigger)
   Serial.print(F(" = "));
   unsigned long transTime = millis() - durration;
   Serial.println(transTime);
-  speedClock(transTime);
+  speedo(transTime);
+  wordTime(trigger, transTime);
+  //speedClock(transTime);
   durration = millis();
   letter = trigger;
 }
@@ -143,14 +145,14 @@ void speedClock(unsigned long currentTranfer)
   static unsigned int transferTotal = 0;
   static unsigned int writeProgression = 0;
   static unsigned int lastCadence = 0;
-  
+
   if(currentTranfer > 5000) //idle case
   {
     transferTotal = 0;//reset recording
     writeProgression = 0;
     return;
   }
-  
+
   transferTotal += currentTranfer;
   writeProgression++;
   if(transferTotal > 6000 && writeProgression > 4)
@@ -166,5 +168,44 @@ void speedClock(unsigned long currentTranfer)
       writeProgression = 0;
     }
   }
-    
+}
+
+void speedo(unsigned long currentTranfer)
+{
+  static unsigned long transferTotal = 0;
+  static unsigned int writeProgression = 0;
+
+  if(currentTranfer > 2000)
+  {//after idle
+    if(transferTotal && writeProgression > 4)
+    { //given that tranfer acumalated and at least 5 strokes made
+      unsigned long clickrate = transferTotal / writeProgression;
+      unsigned int cpm = 60000 / clickrate;
+      Serial.print(cpm);
+      Serial.print(F("CPM "));
+      Serial.print(cpm / 5);
+      Serial.print(F("rawWPM @"));
+      Serial.println(transferTotal);
+    }
+    transferTotal = 0;//reset recording
+    writeProgression = 0;
+  }
+  else
+  {
+    transferTotal += currentTranfer;
+    writeProgression++;
+  }
+}
+
+void wordTime(byte letter, unsigned long durration)
+{
+  static unsigned long wordDurration = 0;
+  
+  wordDurration += durration;
+  if(letter == 32)
+  {
+    Serial.print(F("word @"));
+    Serial.println(wordDurration);
+    wordDurration = 0;
+  }
 }
