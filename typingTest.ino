@@ -95,11 +95,11 @@ void transferTime(byte trigger)
   speedo(transTime, trigger);
   wordTime(transTime, trigger);
   durration = millis();
-  letter = trigger;
 }
 
-#define RECORDEDPOSITIONS 5
-
+#define RECORDEDPOSITIONS 7
+#define LASTPOS RECORDEDPOSITIONS-1
+#define RECLIMIT RECORDEDPOSITIONS-2
 void speedo(unsigned long currentTranfer, byte letter)
 {
   static unsigned long totalTime = 0;
@@ -121,7 +121,7 @@ void speedo(unsigned long currentTranfer, byte letter)
       Serial.print(F("CPM "));
       Serial.print(cpm / 5);
       Serial.println(F("raw"));
-      for(byte i = 0; i < RECORDEDPOSITIONS; i++)
+      for(byte i = 0; i < LASTPOS; i++)
       {
         Serial.print(F("P"));
         Serial.print(i);
@@ -129,6 +129,8 @@ void speedo(unsigned long currentTranfer, byte letter)
         Serial.print(positionTotal[i]);
         Serial.print(F("ms "));
       }
+      Serial.print(F("LAST:"));
+      Serial.println(positionTotal[LASTPOS]);
       Serial.print(strokes);
       Serial.print(F("strokes to "));
       Serial.print(totalWords);
@@ -152,9 +154,8 @@ void speedo(unsigned long currentTranfer, byte letter)
   {
     totalTime += currentTranfer;
     strokes++;
-    
     positionTotal[wordPosition] += currentTranfer;
-    if(wordPosition < 4){wordPosition++;}
+    if(wordPosition < RECLIMIT){wordPosition++;}
     if(letter == 8)//collect information about backspace
     {
       backspaceTime += currentTranfer;
@@ -163,11 +164,11 @@ void speedo(unsigned long currentTranfer, byte letter)
     if(letter == 32)//display and communicate info about words
     {
       wordPosition = 0;
+      positionTotal[LASTPOS] += currentTranfer;
       totalWords++;
     }
   }
 }
-
 
 void wordTime(unsigned long durration, byte letter)
 {
