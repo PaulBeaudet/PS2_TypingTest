@@ -75,51 +75,13 @@ byte convertion(byte letter)
         return pgm_read_byte(&special[1][i]);
       }
     }
-    return 0xff; //ignore other cases given nothing is found in these ranges
+    return 0xff;//ignore other cases given nothing found in these ranges
   }
   
   if(qwerty){return letter;}
   else{return pgm_read_byte(&dvorak[letter-32]);}
 }
 
-// Hold for caps
-
-byte heldASCII(byte letter)
-{
-  static unsigned long holdTimes = 0;
-  static unsigned long lastTime = 0;
-  static byte lastLetter = 0;
-  
-  if(letter == lastLetter)
-  {
-    if(millis() - lastTime < 250)
-    {
-      Keyboard.write(8);
-      
-    }
-  }
-  else
-  {
-    holdTimes = 0;
-    lastLetter = letter;
-    lastTime = millis();
-  }
-
-  if(letter == 32){return 0;}//spacebar
-  if(letter == 9){return 0;}//TAB_KEY
-  
-  if(holdTimes == 18 && letter > 95){return 8;}
-  if(holdTimes == 19)// first hold
-  {//letters covered by main layout
-    if(letter > 95){return letter-32;} //shift cases
-    return letter; //outside cases are repeating
-  }
-  if(holdTimes > 43)
-  {//outside main layout letters repeat
-    if(letter < 95){return letter;}
-  }
-  return 0; //cases not covered
-}
 //--------- Performance testing functions ---------------
 
 void transferTime(byte trigger)
@@ -133,71 +95,84 @@ void transferTime(byte trigger)
   Serial.print(F(" = "));
   unsigned long transTime = millis() - durration;
   Serial.println(transTime);
-  speedo(transTime);
-  wordTime(trigger, transTime);
-  //speedClock(transTime);
+  speedo(transTime, trigger);
+  wordTime(transTime, trigger);
   durration = millis();
   letter = trigger;
 }
 
-void speedClock(unsigned long currentTranfer)
+#define RECORDEDPOSITIONS 5
+
+void speedo(unsigned long currentTranfer, byte letter)
 {
-  static unsigned int transferTotal = 0;
-  static unsigned int writeProgression = 0;
-  static unsigned int lastCadence = 0;
+  static unsigned long totalTime = 0;
 
-  if(currentTranfer > 5000) //idle case
-  {
-    transferTotal = 0;//reset recording
-    writeProgression = 0;
-    return;
-  }
+  static unsigned int corrections = 0;
+  static unsigned int backspaceTime = 0;
 
-  transferTotal += currentTranfer;
-  writeProgression++;
-  if(transferTotal > 6000 && writeProgression > 4)
-  {
-    unsigned int multiplier = 60000 / transferTotal;
-    unsigned int cadence = writeProgression / 5;
-    if(cadence != lastCadence)
-    {
-      Serial.print(cadence * multiplier);
-      Serial.println(F("rawWPM"));
-      lastCadence = cadence;
-      transferTotal = 0;//reset recording
-      writeProgression = 0;
-    }
-  }
-}
-
-void speedo(unsigned long currentTranfer)
-{
-  static unsigned long transferTotal = 0;
-  static unsigned int writeProgression = 0;
+  static byte wordPosition = 0;
+  static unsigned int totalWords = 0;
+  static unsigned long positionTotal[RECORDEDPOSITIONS];
+  static unsigned int strokes = 0;
 
   if(currentTranfer > 2000)
   {//after idle
-    if(transferTotal && writeProgression > 4)
-    { //given that tranfer acumalated and at least 5 strokes made
-      unsigned long clickrate = transferTotal / writeProgression;
-      unsigned int cpm = 60000 / clickrate;
+    if(totalTime && strokes > 4)
+    { //given that tranfer acumalated and at least 5 strkes made
+      unsigned long cpm = 60000 / (totalTime / strokes);
       Serial.print(cpm);
       Serial.print(F("CPM "));
       Serial.print(cpm / 5);
-      Serial.print(F("rawWPM @"));
-      Serial.println(transferTotal);
+      Serial.println(F("raw"));
+      for(byte i = 0; i < RECORDEDPOSITIONS; i++)
+      {
+        Serial.print(F("P"));
+        Serial.print(i);
+        Serial.print(F(":"));
+        Serial.print(positionTotal[i]);
+        Serial.print(F("ms "));
+      }
+      Serial.print(strokes);
+      Serial.print(F("strokes to "));
+      Serial.print(totalWords);
+      Serial.print(F("words @"));
+      Serial.print(totalTime);
+      Serial.println(F("ms"));
+      Serial.print(corrections);
+      Serial.print(F("BS @"));
+      Serial.print(backspaceTime);
+      Serial.println(F("ms"));
     }
-    transferTotal = 0;//reset recording
-    writeProgression = 0;
+    //reset all counters regardless of print condition
+    for(byte i = 0; i < RECORDEDPOSITIONS; i++){positionTotal[i]=0;}
+    totalTime = 0;
+    strokes = 0;
+    backspaceTime = 0;
+    corrections = 0;
+    totalWords = 0;
   }
-  else
+  else //collect information
   {
-    transferTotal += currentTranfer;
-    writeProgression++;
+    totalTime += currentTranfer;
+    strokes++;
+    
+    positionTotal[wordPosition] += currentTranfer;
+    if(wordPosition < 4){wordPosition++;}
+    if(letter == 8)//collect information about backspace
+    {
+      backspaceTime += currentTranfer;
+      corrections++;
+    }  
+    if(letter == 32)//display and communicate info about words
+    {
+      wordPosition = 0;
+      totalWords++;
+    }
   }
 }
 
-void wordTime(byte letter, unsigned long durration)
+
+void wordTime(unsigned long durration, byte letter)
 {
   static unsigned long wordDurration = 0;
   
