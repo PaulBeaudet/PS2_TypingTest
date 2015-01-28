@@ -87,12 +87,9 @@ byte convertion(byte letter)
 void transferTime(byte trigger)
 {
   static unsigned long durration = 0;
-  static byte letter = 0;
   
-  Serial.write(letter);
-  Serial.print(F(" -> "));
   Serial.write(trigger);
-  Serial.print(F(" = "));
+  Serial.print(F(": "));
   unsigned long transTime = millis() - durration;
   Serial.println(transTime);
   speedo(transTime, trigger);
