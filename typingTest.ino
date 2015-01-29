@@ -23,12 +23,12 @@ void inOut()
   {
     byte input = Serial1.read();
     byte output = convertion(input);
-    if(output == 0xff){Serial.println(input, DEC);}
-    else
+    if(output)
     {
-      transferTime(output);
       Keyboard.write(output);
+      transferTime(output);
     }
+    else{transferTime(input);}
   }
 }
 
@@ -63,7 +63,7 @@ byte convertion(byte letter)
   if(letter == 192) //toggle layout via insert key
   {
     qwerty = !qwerty;
-    return 0xff; //ignore this case
+    return 0;
   }
   
   if(letter < 32 || letter > 127)
@@ -75,7 +75,7 @@ byte convertion(byte letter)
         return pgm_read_byte(&special[1][i]);
       }
     }
-    return 0xff;//ignore other cases given nothing found in these ranges
+    return 0;//given nothing found, return raw value
   }
   
   if(qwerty){return letter;}
@@ -84,35 +84,42 @@ byte convertion(byte letter)
 
 //--------- Performance testing functions ---------------
 
-void transferTime(byte trigger)
+void transferTime(byte letter)//real time output
 {
   static unsigned long durration = 0;
   
-  Serial.write(trigger);
-  Serial.print(F(": "));
+  if(letter < 32 || letter > 127){Serial.print(letter, DEC);}
+  else {Serial.write(letter);}
+  Serial.print(F("-"));
   unsigned long transTime = millis() - durration;
   Serial.println(transTime);
-  speedo(transTime, trigger);
-  wordTime(transTime, trigger);
+  dataOutput(transTime, letter); //componded output
   durration = millis();
 }
 
+//detailed reporting
 #define RECORDEDPOSITIONS 7
 #define LASTPOS RECORDEDPOSITIONS-1
 #define RECLIMIT RECORDEDPOSITIONS-2
+#define IDLETIME 3000
+
+void dataOutput(unsigned long durration, byte letter)
+{
+  speedo(durration, letter);
+  wordTime(durration, letter);
+}
+
 void speedo(unsigned long currentTranfer, byte letter)
 {
   static unsigned long totalTime = 0;
-
   static unsigned int corrections = 0;
   static unsigned int backspaceTime = 0;
-
   static byte wordPosition = 0;
   static unsigned int totalWords = 0;
   static unsigned long positionTotal[RECORDEDPOSITIONS];
   static unsigned int strokes = 0;
 
-  if(currentTranfer > 2000)
+  if(currentTranfer > IDLETIME)
   {//after idle
     if(totalTime && strokes > 4)
     { //given that tranfer acumalated and at least 5 strkes made
@@ -181,4 +188,15 @@ void wordTime(unsigned long durration, byte letter)
     Serial.println(wordDurration);
     wordDurration = 0;
   }
+}
+
+void errorTime(unsigned long durration)
+{
+  static unsigned int corrections = 0;
+  static unsigned int backspaceTime = 0;
+}
+
+void puncuationTime(unsigned long durration)
+{
+
 }
