@@ -25,8 +25,8 @@ void inOut()
     byte output = convertion(input);
     if(output)
     {
-      Keyboard.press(output);
-      Keyboard.releaseAll();
+      if(output != 9){Keyboard.releaseAll();}
+      Keyboard.write(output);
       transferTime(output);
     }
     else
@@ -55,7 +55,7 @@ const byte dvorak[] PROGMEM =
 
 #define SPECIALCASES 12
 const byte special[2][SPECIALCASES] PROGMEM =
-{//B,T, CR,LFT,RGT, UP,DWN,HME,PGU,PGD,END 
+{//B,T, CR,LFT,RGT, UP,DWN,HME,PGU,PGD,END,DEL 
   {8,9, 13,219,221,218,220,193,194,197,196,195},
   //conversion from keyboard(top) to virtual keyboard(bottom)
   {8,8,176,216,215,218,217,210,211,214,213,  9}
@@ -91,6 +91,10 @@ void controlChars(byte input)
   if(input == 129 || input == 136)//control cases
   {
     Keyboard.press(128);//KB_LEFT_CTRL
+  }
+  if(input == 128 || input == 135)
+  {
+    Keyboard.press(130);//KB_LEFT_ALT
   }
 }
 
