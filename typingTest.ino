@@ -25,12 +25,13 @@ void inOut()
     byte output = convertion(input);
     if(output)
     {
-      Keyboard.write(output);
+      Keyboard.press(output);
+      Keyboard.releaseAll();
       transferTime(output);
     }
     else
     {
-      //controlChars(input);
+      controlChars(input);
       transferTime(input);
     }
   }
@@ -52,12 +53,12 @@ const byte dvorak[] PROGMEM =
 108, 39,112,111,121,103,107, 44,113,102, 59, 63,124, 43,126, 8 ,
 };
 
-#define SPECIALCASES 11
+#define SPECIALCASES 12
 const byte special[2][SPECIALCASES] PROGMEM =
 {//B,T, CR,LFT,RGT, UP,DWN,HME,PGU,PGD,END 
-  {8,9, 13,219,221,218,220,193,194,197,196,},
+  {8,9, 13,219,221,218,220,193,194,197,196,195},
   //conversion from keyboard(top) to virtual keyboard(bottom)
-  {9,8,176,216,215,218,217,210,211,214,213,}
+  {8,8,176,216,215,218,217,210,211,214,213,  9}
  //0,1, 2 , 3 , 4 , 5 , 6 , 7 , 8 , 9 , 10,
 };
 
@@ -85,26 +86,11 @@ byte convertion(byte letter)
   else{return pgm_read_byte(&dvorak[letter-32]);}
 }
 
-#define HOLDTIME 680
 void controlChars(byte input)
 {
-  static byte potentialHold = 0;
-  static unsigned long lastPress = 0;
-  
   if(input == 129 || input == 136)//control cases
   {
-    if(potentialHold == 129 || potentialHold == 136)
-    {//if it does so consequtively
-      if(millis-lastPress < HOLDTIME){Keyboard.press(128);}
-      //KB_LEFT_CTRL
-    }
-    potentialHold = input;
-    lastPress = millis();
-  }
-  else
-  {
-    potentialHold = 0;
-    Keyboard.releaseAll();
+    Keyboard.press(128);//KB_LEFT_CTRL
   }
 }
 
