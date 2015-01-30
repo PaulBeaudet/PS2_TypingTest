@@ -28,7 +28,11 @@ void inOut()
       Keyboard.write(output);
       transferTime(output);
     }
-    else{transferTime(input);}
+    else
+    {
+      //controlChars(input);
+      transferTime(input);
+    }
   }
 }
 
@@ -76,10 +80,32 @@ byte convertion(byte letter)
       }
     }
     return 0;//given nothing found, return raw value
-  }
-  
+  } 
   if(qwerty){return letter;}
   else{return pgm_read_byte(&dvorak[letter-32]);}
+}
+
+#define HOLDTIME 680
+void controlChars(byte input)
+{
+  static byte potentialHold = 0;
+  static unsigned long lastPress = 0;
+  
+  if(input == 129 || input == 136)//control cases
+  {
+    if(potentialHold == 129 || potentialHold == 136)
+    {//if it does so consequtively
+      if(millis-lastPress < HOLDTIME){Keyboard.press(128);}
+      //KB_LEFT_CTRL
+    }
+    potentialHold = input;
+    lastPress = millis();
+  }
+  else
+  {
+    potentialHold = 0;
+    Keyboard.releaseAll();
+  }
 }
 
 //--------- Performance testing functions ---------------
@@ -98,7 +124,7 @@ void transferTime(byte letter)//real time output
 }
 
 //detailed reporting
-#define RECORDEDPOSITIONS 7
+#define RECORDEDPOSITIONS 9
 #define LASTPOS RECORDEDPOSITIONS-1
 #define RECLIMIT RECORDEDPOSITIONS-2
 #define IDLETIME 3000
@@ -161,18 +187,21 @@ void speedo(unsigned long currentTranfer, byte letter)
   {
     totalTime += currentTranfer;
     strokes++;
-    positionTotal[wordPosition] += currentTranfer;
-    if(wordPosition < RECLIMIT){wordPosition++;}
     if(letter == 8)//collect information about backspace
     {
       backspaceTime += currentTranfer;
       corrections++;
     }  
-    if(letter == 32)//display and communicate info about words
+    else if(letter == 32)//display and communicate info about words
     {
       wordPosition = 0;
       positionTotal[LASTPOS] += currentTranfer;
       totalWords++;
+    }
+    else
+    {
+      positionTotal[wordPosition] += currentTranfer;
+      if(wordPosition < RECLIMIT){wordPosition++;}
     }
   }
 }
