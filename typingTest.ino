@@ -19,15 +19,19 @@ void loop()
 
 void inOut()
 {
+  static byte lastOutput = 0;
+  
   if(Serial1.available())
   {
     byte input = Serial1.read();
     byte output = convertion(input);
     if(output)
     {
-      if(output != 9){Keyboard.releaseAll();}
+      if(output != 9 && lastOutput == 9){Keyboard.releaseAll();}
       Keyboard.write(output);
+      if(output != 9 && lastOutput != 9){Keyboard.releaseAll();}
       transferTime(output);
+      lastOutput = output;
     }
     else
     {
@@ -95,6 +99,12 @@ void controlChars(byte input)
   if(input == 128 || input == 135)
   {
     Keyboard.press(130);//KB_LEFT_ALT
+  }
+  if(input == 208)//press zero for upload
+  {
+    Keyboard.press(128);
+    Keyboard.press(117);//u
+    Keyboard.releaseAll();
   }
 }
 
