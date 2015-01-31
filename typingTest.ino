@@ -1,4 +1,4 @@
-//typingTest.ino
+//typingTest.ino Copyright 2015 Paul Beaudet - See license.txt for details
 //type performance testing using the E1115B ps2 convertion module
 // HARDWARE - Micro: RX to module TX / 5v to 5 / GND to 0V
 
