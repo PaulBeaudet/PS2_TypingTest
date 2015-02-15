@@ -7,8 +7,8 @@
 void setup()
 {
   Serial1.begin(115200); //E1115B baud rate when "DR" pin is open
-                        //Rate is 56k when connected to ground
-  Serial.begin(115200);
+                         //Rate is 56k when connected to ground
+  Serial.begin(115200);  //Heads up display
   Keyboard.begin();
 }
 
@@ -68,7 +68,7 @@ const byte special[2][SPECIALCASES] PROGMEM =
 
 byte convertion(byte letter)
 {
-  static boolean qwerty = true;
+  static boolean qwerty = false;
   if(letter == 192) //toggle layout via insert key
   {
     qwerty = !qwerty;
@@ -114,12 +114,12 @@ void transferTime(byte letter)//real time output
 {
   static unsigned long durration = 0;
   
+  unsigned long transTime = millis() - durration;
+  dataOutput(transTime, letter); //componded output
   if(letter < 32 || letter > 127){Serial.print(letter, DEC);}
   else {Serial.write(letter);}
   Serial.print(F("-"));
-  unsigned long transTime = millis() - durration;
   Serial.println(transTime);
-  dataOutput(transTime, letter); //componded output
   durration = millis();
 }
 
@@ -128,18 +128,77 @@ void transferTime(byte letter)//real time output
 #define LASTPOS RECORDEDPOSITIONS-1
 #define RECLIMIT RECORDEDPOSITIONS-2
 #define IDLETIME 3000
+#define HISTORY 15
+#define AMINUTE 60000
 
 void dataOutput(unsigned long durration, byte letter)
 {
+  SPW(durration, letter);
   speedo(durration, letter);
-  wordTime(durration, letter);
+  errorTime(durration, letter);
+  //wordTime(durration, letter);
+}
+
+void SPW(unsigned long durration, byte letter)//speed per word
+{
+  static unsigned int history[HISTORY];
+  static byte writePlace = 0;
+  static boolean newWord = false;
+
+  if(letter == 8)
+  {
+    if(newWord){newWord=false;}
+    writePlace--;
+    history[writePlace]=0;
+  }
+  else
+  {
+    if(letter == 32){newWord=true;}
+    else if(newWord)
+    {
+      unsigned int think = 0; unsigned int totalMs = 0;
+      for(byte i = 0;i<HISTORY;i++)
+      {
+        totalMs += history[i];
+        if(history[i] > think){think = history[i];}
+        history[i]=0;
+      }
+      Serial.print(F("word @")); Serial.println(totalMs);
+      unsigned int spw = AMINUTE/((totalMs - think) / (writePlace-1)) / 5;
+      Serial.print(spw); Serial.println(F(" SPW"));
+      averageSPW(spw);
+      writePlace = 0;
+      newWord = false;
+    }
+    history[writePlace]=durration;
+    writePlace++;
+  }
+}
+
+void averageSPW(byte spw)
+{
+  static unsigned int lastSpeeds[HISTORY];
+  static byte count = 0;
+  
+  if(count == HISTORY)
+  {//do the average and reset the history and count
+    unsigned int totalMs = 0;
+    for(byte i = 0; i < HISTORY; i++)
+    {
+      totalMs += lastSpeeds[i];
+      lastSpeeds[i]=0;
+    }
+    Serial.print(totalMs/HISTORY);
+    Serial.println(F("spw running"));
+    count=0;
+  }
+  lastSpeeds[count] = spw;
+  count++;
 }
 
 void speedo(unsigned long currentTranfer, byte letter)
 {
   static unsigned long totalTime = 0;
-  static unsigned int corrections = 0;
-  static unsigned int backspaceTime = 0;
   static byte wordPosition = 0;
   static unsigned int totalWords = 0;
   static unsigned long positionTotal[RECORDEDPOSITIONS];
@@ -170,29 +229,18 @@ void speedo(unsigned long currentTranfer, byte letter)
       Serial.print(F("words @"));
       Serial.print(totalTime);
       Serial.println(F("ms"));
-      Serial.print(corrections);
-      Serial.print(F("BS @"));
-      Serial.print(backspaceTime);
-      Serial.println(F("ms"));
     }
     //reset all counters regardless of print condition
     for(byte i = 0; i < RECORDEDPOSITIONS; i++){positionTotal[i]=0;}
     totalTime = 0;
     strokes = 0;
-    backspaceTime = 0;
-    corrections = 0;
     totalWords = 0;
   }
   else //collect information
   {
     totalTime += currentTranfer;
     strokes++;
-    if(letter == 8)//collect information about backspace
-    {
-      backspaceTime += currentTranfer;
-      corrections++;
-    }  
-    else if(letter == 32)//display and communicate info about words
+    if(letter == 32)//display and communicate info about words
     {
       wordPosition = 0;
       positionTotal[LASTPOS] += currentTranfer;
@@ -219,13 +267,46 @@ void wordTime(unsigned long durration, byte letter)
   }
 }
 
-void errorTime(unsigned long durration)
+void errorTime(unsigned long durration, byte letter)
 {
   static unsigned int corrections = 0;
-  static unsigned int backspaceTime = 0;
-}
-
-void puncuationTime(unsigned long durration)
-{
-
+  static unsigned int errorTime = 0;
+  static unsigned int history[HISTORY];
+  static byte writePlace = 0;
+  static byte numRemoved = 0;
+  static boolean newWord = false;
+  
+  if(durration > IDLETIME)
+  {//after idle  
+    Serial.print(corrections);Serial.print(F("BS @"));
+    Serial.print(errorTime);  Serial.println(F("ms"));
+    corrections = 0;
+    errorTime = 0;
+  }
+  else
+  {
+    if(letter == 8)
+    {
+      corrections++;
+      if(newWord){newWord=false;}
+      errorTime += durration;
+      if(writePlace)
+      {
+        writePlace--;
+        errorTime += history[writePlace];
+      }
+      history[writePlace]=0;
+    }
+    else 
+    {
+      if(letter == 32){newWord=true;}
+      else if(newWord)
+      {
+        for(byte i = 0;i<HISTORY;i++){history[i]=0;}
+        writePlace = 0;
+      }
+      history[writePlace]=durration;
+      writePlace++;
+    }
+  }
 }
