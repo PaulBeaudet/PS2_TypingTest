@@ -136,7 +136,7 @@ void dataOutput(unsigned long durration, byte letter)
   SPW(durration, letter);
   speedo(durration, letter);
   errorTime(durration, letter);
-  //wordTime(durration, letter);
+  wordTime(durration, letter);
 }
 
 void SPW(unsigned long durration, byte letter)//speed per word
@@ -148,7 +148,7 @@ void SPW(unsigned long durration, byte letter)//speed per word
   if(letter == 8)
   {
     if(newWord){newWord=false;}
-    writePlace--;
+    if(writePlace){writePlace--;}
     history[writePlace]=0;
   }
   else
@@ -163,7 +163,7 @@ void SPW(unsigned long durration, byte letter)//speed per word
         if(history[i] > think){think = history[i];}
         history[i]=0;
       }
-      Serial.print(F("word @")); Serial.println(totalMs);
+      //Serial.print(F("word @")); Serial.println(totalMs);
       unsigned int spw = AMINUTE/((totalMs - think) / (writePlace-1)) / 5;
       Serial.print(spw); Serial.println(F(" SPW"));
       averageSPW(spw);
@@ -171,7 +171,7 @@ void SPW(unsigned long durration, byte letter)//speed per word
       newWord = false;
     }
     history[writePlace]=durration;
-    writePlace++;
+    if(writePlace < HISTORY){writePlace++;}
   }
 }
 
@@ -193,7 +193,7 @@ void averageSPW(byte spw)
     count=0;
   }
   lastSpeeds[count] = spw;
-  count++;
+  if(count < HISTORY){count++;}
 }
 
 void speedo(unsigned long currentTranfer, byte letter)
@@ -278,7 +278,7 @@ void errorTime(unsigned long durration, byte letter)
   
   if(durration > IDLETIME)
   {//after idle  
-    Serial.print(corrections);Serial.print(F("BS @"));
+    Serial.print(corrections);Serial.print(F("Corrections @"));
     Serial.print(errorTime);  Serial.println(F("ms"));
     corrections = 0;
     errorTime = 0;
@@ -294,6 +294,7 @@ void errorTime(unsigned long durration, byte letter)
       {
         writePlace--;
         errorTime += history[writePlace];
+        corrections++;
       }
       history[writePlace]=0;
     }
@@ -306,7 +307,7 @@ void errorTime(unsigned long durration, byte letter)
         writePlace = 0;
       }
       history[writePlace]=durration;
-      writePlace++;
+      if(writePlace < HISTORY){writePlace++;}
     }
   }
 }
